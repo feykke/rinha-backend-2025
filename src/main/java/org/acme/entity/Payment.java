@@ -1,26 +1,28 @@
 package org.acme.entity;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
 
-public class Payment {
+public final class Payment {
 
-    @JsonProperty("correlation_id")
-    public String correlationId;
-    public Double amount;
+    private final String correlationId;
+    private final BigDecimal amount;
+    private final String createdAt;
+
+    public Payment(String correlationId, BigDecimal amount, String createdAt) {
+        this.correlationId = correlationId;
+        this.amount = amount;
+        this.createdAt = createdAt;
+    }
 
     public String getCorrelationId() {
         return correlationId;
     }
 
-    public void setCorrelationId(String correlationId) {
-        this.correlationId = correlationId;
-    }
-
-    public Double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(Double amount) {
-        this.amount = amount;
+    public String getCreatedAt() {
+        return createdAt;
     }
 }
