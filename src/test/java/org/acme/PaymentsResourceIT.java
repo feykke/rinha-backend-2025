@@ -3,6 +3,6 @@ package org.acme;
 import io.quarkus.test.junit.QuarkusIntegrationTest;
 
 @QuarkusIntegrationTest
-class PaymentsControllerIT extends PaymentsControllerTest {
+class PaymentsResourceIT extends PaymentsResourceTest {
     // Execute the same tests but in packaged mode.
 }
