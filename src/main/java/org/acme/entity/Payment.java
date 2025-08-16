@@ -6,12 +6,12 @@ public final class Payment {
 
     private final String correlationId;
     private final BigDecimal amount;
-    private final String createdAt;
+    private final String requestedAt;
 
-    public Payment(String correlationId, BigDecimal amount, String createdAt) {
+    public Payment(String correlationId, BigDecimal amount, String requestedAt) {
         this.correlationId = correlationId;
         this.amount = amount;
-        this.createdAt = createdAt;
+        this.requestedAt = requestedAt;
     }
 
     public String getCorrelationId() {
@@ -22,7 +22,8 @@ public final class Payment {
         return amount;
     }
 
-    public String getCreatedAt() {
-        return createdAt;
+    public String getRequestedAt() {
+        return requestedAt;
     }
+
 }
