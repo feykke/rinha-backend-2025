@@ -51,7 +51,7 @@ services:
     hostname: worker1
     environment:
       - BACKEND_TYPE=worker
-      - PAYMENT_WORKERS_QTT=16
+      - PAYMENT_WORKERS_QTT=15
       - REDIS_HOST=redis://redis:6379
       - DEFAULT_PROCESSOR_URL=http://payment-processor-default:8080
       - FALLBACK_PROCESSOR_URL=http://payment-processor-fallback:8080
