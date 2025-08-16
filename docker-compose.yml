@@ -30,6 +30,8 @@ services:
     environment:
       - BACKEND_MODE=api
       - REDIS_HOST=redis://redis:6379
+      - DEFAULT_PROCESSOR_URL=http://payment-processor-default:8080
+      - FALLBACK_PROCESSOR_URL=http://payment-processor-fallback:8080
     depends_on:
       redis:
         condition: service_healthy
@@ -40,6 +42,19 @@ services:
           memory: "95MB"
     networks:
       - backend-rinha
+      - payment-processor
+  api2:
+    <<: *api1
+    hostname: api2
+  worker1:
+    <<: *api1
+    hostname: worker1
+    environment:
+      - BACKEND_MODE=worker
+      - PAYMENT_WORKERS_SIZE=10
+      - REDIS_HOST=redis://redis:6379
+      - DEFAULT_PROCESSOR_URL=http://payment-processor-default:8080
+      - FALLBACK_PROCESSOR_URL=http://payment-processor-fallback:8080
   nginx:
     image: nginx:1.27.0-alpine
     volumes:
@@ -48,8 +63,11 @@ services:
       - "9999:9999"
     networks:
       - backend-rinha
+      - payment-processor
     depends_on:
       - api1
+      - api2
+      - worker1
       - redis
     deploy:
       resources:
@@ -59,3 +77,5 @@ services:
 networks:
   backend-rinha:
     driver: bridge
+  payment-processor:
+    external: true
