@@ -58,32 +58,40 @@ public class RedisRepository {
     }
 
     public PaymentQueueItens dequeue() {
-        KeyValue<String, String> result = paymentList.blpop(Duration.ofSeconds(1), PAYMENT_QUEUE);
-        if (result != null) {
-            String[] parts = result.value().split(":");
-            UUID correlationId = UUID.fromString(parts[0]);
-            BigDecimal amount = new BigDecimal(parts[1]);
-            return new PaymentQueueItens(correlationId, amount);
+        try {
+            KeyValue<String, String> result = paymentList.blpop(Duration.ofSeconds(1), PAYMENT_QUEUE);
+            if (result != null) {
+                String[] parts = result.value().split(":");
+                UUID correlationId = UUID.fromString(parts[0]);
+                BigDecimal amount = new BigDecimal(parts[1]);
+                LOG.debugf("Dequeued payment: %s with amount: %s", correlationId, amount);
+                return new PaymentQueueItens(correlationId, amount);
+            }
+            LOG.debug("No payment to dequeue");
+        } catch (Exception e) {
+            LOG.errorf("Error dequeuing payment: %s", e.getMessage());
         }
         return null;
     }
 
     public boolean acquireLock(String workerId) {
         try {
-            String result = redis.send(
+            Response response = redis.send(
                     io.vertx.redis.client.Request.cmd(Command.SET)
                             .arg(LOCK_KEY)
                             .arg(workerId)
                             .arg("NX")
                             .arg("PX").arg(LOCK_TTL_MS)
-            ).toCompletionStage().toCompletableFuture().get().toString();
+            ).toCompletionStage().toCompletableFuture().get();
 
-            if ("OK".equals(result)) {
-                LOG.debug("Acquired lock!");
+            if (response != null && "OK".equals(response.toString())) {
+//                LOG.debugf("Worker %s acquired lock!", workerId);
                 return true;
+            } else {
+//                LOG.debugf("Worker %s failed to acquire lock - lock already exists", workerId);
             }
         } catch (Exception e) {
-            LOG.error("Error when acquiring lock", e);
+            LOG.errorf("Error when acquiring lock for worker %s: %s", workerId, e.getMessage());
         }
         return false;
     }
@@ -94,11 +102,14 @@ public class RedisRepository {
             Response currentValue = redis.send(requestLockKey).toCompletionStage().toCompletableFuture().get();
             if(currentValue != null && workerId.equals(currentValue.toString())) {
                 Request requestDelete = Request.cmd(Command.DEL).arg(LOCK_KEY);
-                redis.send(requestDelete).toCompletionStage().toCompletableFuture().get();
-                LOG.debug("Unlocked lock");
+                Response deleteResponse = redis.send(requestDelete).toCompletionStage().toCompletableFuture().get();
+//                LOG.debugf("Worker %s released lock (deleted: %s)", workerId, deleteResponse != null ? deleteResponse.toString() : "null");
+            } else {
+//                LOG.debugf("Worker %s tried to release lock but doesn't own it (current owner: %s)",
+//                    workerId, currentValue != null ? currentValue.toString() : "none");
             }
         } catch (Exception e) {
-            LOG.error("Error when unlocking lock", e);
+            LOG.errorf("Error when releasing lock for worker %s: %s", workerId, e.getMessage());
         }
     }
 
@@ -106,12 +117,35 @@ public class RedisRepository {
         if (redis != null) redis.close();
     }
 
+    public boolean isConnected() {
+        try {
+            Response response = redis.send(Request.cmd(Command.PING)).toCompletionStage().toCompletableFuture().get();
+            return response != null && "PONG".equals(response.toString());
+        } catch (Exception e) {
+            LOG.errorf("Redis connection check failed: %s", e.getMessage());
+            return false;
+        }
+    }
+
     public List<PaymentDBO> getPayments (Long from, Long to) {
         return paymentSortedSet.zrangebyscore(PAYMENT_SET, new ScoreRange(from, to));
     }
 
     public void savePayment(Payment payment, String processorName) {
-        final PaymentDBO paymentDBO = new PaymentDBO(UUID.fromString(payment.getCorrelationId()), payment.getAmount(), processorName);
-        paymentSortedSet.zadd(PAYMENT_SET, DateUtils.parseIsoUtcToEpochMilli(payment.getRequestedAt()), paymentDBO);
+        try {
+            LOG.infof("Saving payment: correlationId=%s, amount=%s, requestedAt=%s, processor=%s", 
+                payment.getCorrelationId(), payment.getAmount(), payment.getRequestedAt(), processorName);
+            
+            final PaymentDBO paymentDBO = new PaymentDBO(UUID.fromString(payment.getCorrelationId()), payment.getAmount(), processorName);
+            LOG.infof("Created PaymentDBO: %s", paymentDBO);
+            
+            Long score = DateUtils.parseIsoUtcToEpochMilli(payment.getRequestedAt());
+            LOG.infof("Parsed score from date: %d", score);
+            
+            paymentSortedSet.zadd(PAYMENT_SET, score, paymentDBO);
+            LOG.infof("Payment saved successfully to sorted set");
+        } catch (Exception e) {
+            LOG.errorf("Save payment failure - Error: %s", e.getMessage(), e);
+        }
     }
 }

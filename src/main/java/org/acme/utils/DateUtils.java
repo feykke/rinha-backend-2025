@@ -6,7 +6,7 @@ import java.time.format.DateTimeFormatter;
 
 public final class DateUtils {
 
-    private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
+    public final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
 
     public static Long parseIsoUtcToEpochMilli(String isoUtcString) {

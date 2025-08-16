@@ -1,6 +1,5 @@
 package org.acme.service;
 
-import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.acme.dto.HealthCheckResponseDTO;
@@ -70,12 +69,14 @@ public class PaymentsService {
     public void processPayment(Payment payment) {
         if(activeProcessor.get().equals(DEFAULT)) {
             RestResponse<Void> response =  paymentProcessorDefault.processPayment(payment);
+            LOG.infof("Status POST processor default: %d", response.getStatus());
             handlePaymentResponse(response, payment, DEFAULT);
             return;
         }
 
         if(activeProcessor.get().equals(FALLBACK)) {
             RestResponse<Void> response = paymentProcessorFallback.processPayment(payment);
+            LOG.infof("Status POST processor fallback: %d", response.getStatus());
             handlePaymentResponse(response, payment, FALLBACK);
             return;
         }
@@ -84,20 +85,33 @@ public class PaymentsService {
         LOG.debugf("All processors are down, enqueuing payment %s", payment.getCorrelationId());
     }
 
-    @Scheduled(every = "5s")
     public void checkProcessorsHealth() {
-        RestResponse<HealthCheckResponseDTO> healthDefault = paymentProcessorDefault.healthCheck();
-        RestResponse<HealthCheckResponseDTO> healthFallback = paymentProcessorFallback.healthCheck();
-        if (!healthDefault.getEntity().failing()) {
-            activeProcessor.set("default");
-            return;
+        try {
+            RestResponse<HealthCheckResponseDTO> healthDefault = paymentProcessorDefault.healthCheck();
+            LOG.infof("Default Processor failing: %s", healthDefault.getEntity().failing());
+            if (healthDefault.getEntity() != null && !healthDefault.getEntity().failing()) {
+                activeProcessor.set("default");
+                LOG.info("Default processor is healthy, setting as active");
+                return;
+            }
+        } catch (Exception e) {
+            LOG.warnf("Error checking default processor health: %s", e.getMessage());
         }
-        if (!healthFallback.getEntity().failing()) {
-            activeProcessor.set("fallback");
-            return;
+
+        try {
+            RestResponse<HealthCheckResponseDTO> healthFallback = paymentProcessorFallback.healthCheck();
+            LOG.infof("Fallback Processor failing: %s", healthFallback.getEntity().failing());
+            if (healthFallback.getEntity() != null && !healthFallback.getEntity().failing()) {
+                activeProcessor.set("fallback");
+                LOG.info("Fallback processor is healthy, setting as active");
+                return;
+            }
+        } catch (Exception e) {
+            LOG.warnf("Error checking fallback processor health: %s", e.getMessage());
         }
 
         activeProcessor.set("none");
+        LOG.info("No processors are healthy, setting active processor to none");
     }
 
     private void handlePaymentResponse(RestResponse<Void> response, Payment payment, String processor) {

@@ -28,4 +28,13 @@ public class PaymentDBO {
     public String getProcessor() {
         return processor;
     }
+
+    @Override
+    public String toString() {
+        return "PaymentDBO{" +
+                "correlationId=" + correlationId +
+                ", amount=" + amount +
+                ", processor='" + processor + '\'' +
+                '}';
+    }
 }
