@@ -46,7 +46,7 @@ public class PaymentWorker {
             return;
         }
 
-        executor = Executors.newFixedThreadPool(qttWorkers);
+        executor = Executors.newVirtualThreadPerTaskExecutor();
 
         for (int i = 0; i < qttWorkers; i++) {
             final String workerId = UUID.randomUUID().toString();
@@ -64,39 +64,28 @@ public class PaymentWorker {
     private void poolLoop(String workerId) {
         while (running) {
             try {
-                // Check Redis connection first
                 if (!redisRepo.isConnected()) {
                     Thread.sleep(1000);
                     continue;
                 }
 
-                if(!redisRepo.acquireLock(workerId)) {
-                    Thread.sleep(100);
-                    continue;
-                }
+               PaymentQueueItens response = paymentsService.dequeuePayment();
 
-                // Dealing with concurrency
-                long lockExpiresAt = Instant.now().toEpochMilli() + redisRepo.LOCK_TTL_MS;
-                while (Instant.now().toEpochMilli() < lockExpiresAt && running) {
-                   PaymentQueueItens response = paymentsService.dequeuePayment();
+               if (response == null) {
+                   Thread.sleep(100);
+                   continue;
+               }
 
-                   if (response == null) {
-                       break;
-                   }
+               Payment payment = new Payment(
+                       response.getCorrelationId().toString(),
+                       response.getAmount(),
+                       DateUtils.FORMATTER.format(Instant.now())
+               );
 
-                   Payment payment = new Payment(
-                           response.getCorrelationId().toString(),
-                           response.getAmount(),
-                           DateUtils.FORMATTER.format(Instant.now())
-                   );
-
-                   paymentsService.processPayment(payment);
-                }
-
-                redisRepo.releaseLock(workerId);
+               paymentsService.processPayment(payment);
             } catch (Exception e) {
                 try {
-                    Thread.sleep(1000); // Wait a bit longer on error
+                    Thread.sleep(1000);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     break;

@@ -11,15 +11,22 @@ import org.acme.dto.PaymentRequestDTO;
 import org.acme.entity.PaymentsSummaryResponse;
 import org.acme.service.PaymentsService;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 
 @Path("/")
 public class PaymentsResource {
 
     private final PaymentsService paymentsService;
+    private final ExecutorService executorService;
 
     @Inject
-    public PaymentsResource(PaymentsService paymentsService) {
+    public PaymentsResource(
+            PaymentsService paymentsService
+    ) {
         this.paymentsService = paymentsService;
+        this.executorService = Executors.newVirtualThreadPerTaskExecutor();
     }
 
     @Path("payments-summary")
@@ -36,7 +43,7 @@ public class PaymentsResource {
     @Path("payments")
     @POST
     public Response postPayment(PaymentRequestDTO payment) {
-        paymentsService.enqueuePayment(payment);
+        executorService.submit(() -> paymentsService.enqueuePayment(payment));
         return Response.status(HttpResponseStatus.ACCEPTED.code()).build();
     }
 }

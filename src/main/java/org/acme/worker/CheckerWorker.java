@@ -34,7 +34,7 @@ public class CheckerWorker {
         if(!"worker".equals(serviceType)) {
             return;
         }
-        executor = Executors.newFixedThreadPool(1);
+        executor = Executors.newVirtualThreadPerTaskExecutor();
         running.set(true);
 
         executor.submit(this::healthCheckLoop);
@@ -52,13 +52,13 @@ public class CheckerWorker {
         while (running.get()) {
             try {
                 paymentsService.checkProcessorsHealth();
-                Thread.sleep(5000); // Wait 5 seconds before next check
+                Thread.sleep(5000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
                 try {
-                    Thread.sleep(5000); // Wait 5 seconds even on error
+                    Thread.sleep(5000);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     break;

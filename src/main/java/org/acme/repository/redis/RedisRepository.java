@@ -34,10 +34,6 @@ public class RedisRepository {
     private final ListCommands<String, String> paymentList;
     private final SortedSetCommands<String, PaymentDBO> paymentSortedSet;
 
-    // Lock Configuration
-    private static final String LOCK_KEY = "payment_worker_lock";
-    public final long LOCK_TTL_MS = 2000;
-
     @Inject
     public RedisRepository(
             RedisDataSource redisDs,
@@ -55,7 +51,7 @@ public class RedisRepository {
 
     public PaymentQueueItens dequeue() {
         try {
-            KeyValue<String, String> result = paymentList.blpop(Duration.ofSeconds(1), PAYMENT_QUEUE);
+            KeyValue<String, String> result = paymentList.blpop(Duration.ofMillis(1000), PAYMENT_QUEUE);
             if (result != null) {
                 String[] parts = result.value().split(":");
                 UUID correlationId = UUID.fromString(parts[0]);
@@ -65,37 +61,6 @@ public class RedisRepository {
         } catch (Exception e) {
         }
         return null;
-    }
-
-    public boolean acquireLock(String workerId) {
-        try {
-            Response response = redis.send(
-                    io.vertx.redis.client.Request.cmd(Command.SET)
-                            .arg(LOCK_KEY)
-                            .arg(workerId)
-                            .arg("NX")
-                            .arg("PX").arg(LOCK_TTL_MS)
-            ).toCompletionStage().toCompletableFuture().get();
-
-            if (response != null && "OK".equals(response.toString())) {
-                return true;
-            }
-        } catch (Exception e) {
-
-        }
-        return false;
-    }
-
-    public void releaseLock(String workerId) {
-        try {
-            Request requestLockKey = Request.cmd(Command.GET).arg(LOCK_KEY);
-            Response currentValue = redis.send(requestLockKey).toCompletionStage().toCompletableFuture().get();
-            if(currentValue != null && workerId.equals(currentValue.toString())) {
-                Request requestDelete = Request.cmd(Command.DEL).arg(LOCK_KEY);
-                redis.send(requestDelete).toCompletionStage().toCompletableFuture().get();
-            }
-        } catch (Exception e) {
-        }
     }
 
     public void closeClient() {

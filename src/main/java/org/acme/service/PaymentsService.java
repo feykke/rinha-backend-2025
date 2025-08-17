@@ -80,22 +80,16 @@ public class PaymentsService {
     }
 
     public void checkProcessorsHealth() {
-        try {
-            RestResponse<HealthCheckResponseDTO> healthDefault = paymentProcessorDefault.healthCheck();
-            if (healthDefault.getEntity() != null && !healthDefault.getEntity().failing()) {
-                activeProcessor.set("default");
-                return;
-            }
-        } catch (Exception e) {
+        RestResponse<HealthCheckResponseDTO> healthDefault = paymentProcessorDefault.healthCheck();
+        if (healthDefault.getEntity() != null && !healthDefault.getEntity().failing()) {
+            activeProcessor.set("default");
+            return;
         }
 
-        try {
-            RestResponse<HealthCheckResponseDTO> healthFallback = paymentProcessorFallback.healthCheck();
-            if (healthFallback.getEntity() != null && !healthFallback.getEntity().failing()) {
-                activeProcessor.set("fallback");
-                return;
-            }
-        } catch (Exception e) {
+        RestResponse<HealthCheckResponseDTO> healthFallback = paymentProcessorFallback.healthCheck();
+        if (healthFallback.getEntity() != null && !healthFallback.getEntity().failing()) {
+            activeProcessor.set("fallback");
+            return;
         }
 
         activeProcessor.set("none");
