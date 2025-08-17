@@ -65,20 +65,20 @@ public class PaymentWorker {
         while (running) {
             try {
                 if (!redisRepo.isConnected()) {
-                    Thread.sleep(1000);
+                    Thread.sleep(500);
                     continue;
                 }
 
                PaymentQueueItens response = paymentsService.dequeuePayment();
 
                if (response == null) {
-                   Thread.sleep(100);
+                   Thread.sleep(50);
                    continue;
                }
 
                Payment payment = new Payment(
-                       response.getCorrelationId().toString(),
-                       response.getAmount(),
+                       response.correlationId().toString(),
+                       response.amount(),
                        DateUtils.FORMATTER.format(Instant.now())
                );
 

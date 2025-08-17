@@ -34,6 +34,7 @@ public class CheckerWorker {
         if(!"worker".equals(serviceType)) {
             return;
         }
+
         executor = Executors.newVirtualThreadPerTaskExecutor();
         running.set(true);
 

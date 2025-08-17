@@ -29,7 +29,6 @@ public class RedisRepository {
 
     private final String PAYMENT_QUEUE = "processing_payment_queue";
     private final String PAYMENT_SET = "payment_by_date";
-
     private final Redis redis;
     private final ListCommands<String, String> paymentList;
     private final SortedSetCommands<String, PaymentDBO> paymentSortedSet;
@@ -46,20 +45,18 @@ public class RedisRepository {
 
     public void enqueue (PaymentRequestDTO payment) {
         String paymentData = payment.correlationId() + ":" + payment.amount();
-        paymentList.lpush(PAYMENT_QUEUE, paymentData);
+        paymentList.rpush(PAYMENT_QUEUE, paymentData);
     }
 
     public PaymentQueueItens dequeue() {
-        try {
-            KeyValue<String, String> result = paymentList.blpop(Duration.ofMillis(1000), PAYMENT_QUEUE);
-            if (result != null) {
-                String[] parts = result.value().split(":");
-                UUID correlationId = UUID.fromString(parts[0]);
-                BigDecimal amount = new BigDecimal(parts[1]);
-                return new PaymentQueueItens(correlationId, amount);
-            }
-        } catch (Exception e) {
+        KeyValue<String, String> result = paymentList.blpop(Duration.ofMillis(1000), PAYMENT_QUEUE);
+        if (result != null) {
+            String[] parts = result.value().split(":");
+            UUID correlationId = UUID.fromString(parts[0]);
+            BigDecimal amount = new BigDecimal(parts[1]);
+            return new PaymentQueueItens(correlationId, amount);
         }
+
         return null;
     }
 
@@ -81,13 +78,10 @@ public class RedisRepository {
     }
 
     public void savePayment(Payment payment, String processorName) {
-        try {
-            final PaymentDBO paymentDBO = new PaymentDBO(UUID.fromString(payment.getCorrelationId()), payment.getAmount(), processorName);
-            
-            Long score = DateUtils.parseIsoUtcToEpochMilli(payment.getRequestedAt());
-            
-            paymentSortedSet.zadd(PAYMENT_SET, score, paymentDBO);
-        } catch (Exception e) {
-        }
+        final PaymentDBO paymentDBO = new PaymentDBO(UUID.fromString(payment.correlationId()), payment.amount(), processorName);
+
+        Long score = DateUtils.parseIsoUtcToEpochMilli(payment.requestedAt());
+
+        paymentSortedSet.zadd(PAYMENT_SET, score, paymentDBO);
     }
 }

@@ -76,7 +76,7 @@ public class PaymentsService {
             return;
         }
 
-        redisRepository.enqueue(new PaymentRequestDTO(payment.getCorrelationId(), payment.getAmount()));
+        redisRepository.enqueue(new PaymentRequestDTO(payment.correlationId(), payment.amount()));
     }
 
     public void checkProcessorsHealth() {
@@ -99,7 +99,7 @@ public class PaymentsService {
         if (response.getStatus() == 200) {
             redisRepository.savePayment(payment, processor);
         } else {
-            redisRepository.enqueue(new PaymentRequestDTO(payment.getCorrelationId(), payment.getAmount()));
+            redisRepository.enqueue(new PaymentRequestDTO(payment.correlationId(), payment.amount()));
         }
     }
 
