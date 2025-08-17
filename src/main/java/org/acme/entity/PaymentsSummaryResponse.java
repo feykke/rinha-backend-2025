@@ -1,5 +1,7 @@
 package org.acme.entity;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import io.quarkus.runtime.annotations.RegisterForReflection;
+import jakarta.json.bind.annotation.JsonbProperty;
 
-public record PaymentsSummaryResponse(@JsonProperty("default") ProcessorSummary defaultP, ProcessorSummary fallback) { }
+@RegisterForReflection
+public record PaymentsSummaryResponse(@JsonbProperty("default") ProcessorSummary defaultP, ProcessorSummary fallback) { }
